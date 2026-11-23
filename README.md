@@ -1,4 +1,4 @@
-# 🛡️ Cyber Incident Investigation Dashboard
+# Cyber Incident Investigation Dashboard
 
 A fully functional, database-driven cybersecurity investigation dashboard built with **Python**, **Streamlit**, and **MySQL**.
 
@@ -7,14 +7,17 @@ A fully functional, database-driven cybersecurity investigation dashboard built 
 ## Project Structure
 
 ```
-cyber_investigation/
-├── main.py          ← Streamlit dashboard (entry point)
-├── database.py      ← MySQL connection (reads .env)
-├── queries.py       ← All SQL query functions
-├── .env             ← Database credentials (not committed)
+Cyber-Investigation-Dashboard/
+├── src/
+│   ├── main.py           # Streamlit dashboard (entry point)
+│   ├── database.py       # MySQL connection (reads .env)
+│   └── queries.py        # All SQL query functions
+├── database/
+│   └── schema.sql        # Full database schema and seed data
+├── requirements.txt      # Python dependencies
 ├── .gitignore
-├── requirements.txt
-└── .venv/           ← Python virtual environment
+├── .env                  # Database credentials (not committed)
+└── README.md
 ```
 
 ---
@@ -48,7 +51,7 @@ DB_PORT=3306
 Using the existing virtual environment:
 
 ```bash
-cd cyber_investigation
+cd Cyber-Investigation-Dashboard
 # Activate virtual environment
 source .venv/bin/activate        # Linux / macOS
 # .venv\Scripts\activate         # Windows
@@ -67,7 +70,7 @@ pip install -r requirements.txt
 ## Running the Dashboard
 
 ```bash
-streamlit run main.py
+streamlit run src/main.py
 ```
 
 The dashboard opens at **http://localhost:8501** in your browser.
@@ -76,15 +79,15 @@ The dashboard opens at **http://localhost:8501** in your browser.
 
 ## Dashboard Sections
 
-| Section | Description |
-|---|---|
-| 📊 Dashboard Overview | KPI cards + charts for severity, status, attack type, alert trends |
-| 🔍 Incident Investigation | Filter/search incidents, detailed view, update status, assign investigator, record new incidents |
-| 🚨 Security Alerts | All alerts with filtering, alert logs, critical highlighting |
-| 🗂️ Evidence Tracking | Evidence records per incident, add new evidence |
-| 🕵️ Investigation Activities | Chronological investigation timeline, record new activities |
-| 📈 Analytical Insights | IP analysis, attack patterns, investigator workload, resolution patterns |
-| 📋 Reports | Incident summary, critical report, resolution report, workload report with CSV export |
+| Section                  | Description                                                                                           |
+|--------------------------|-------------------------------------------------------------------------------------------------------|
+| Dashboard Overview       | KPI cards and charts for severity, status, attack type, and alert trends                              |
+| Incident Investigation   | Filter and search incidents, detailed view, update status, assign investigator, record new incidents  |
+| Security Alerts          | All alerts with filtering, alert logs, and critical highlighting                                      |
+| Evidence Tracking        | Evidence records per incident, add new evidence                                                       |
+| Investigation Activities | Chronological investigation timeline, record new activities                                           |
+| Analytical Insights      | IP analysis, attack patterns, investigator workload, resolution patterns                              |
+| Reports                  | Incident summary, critical report, resolution report, workload report with CSV export                 |
 
 ---
 
