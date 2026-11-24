@@ -345,6 +345,19 @@ div[data-testid="stAlert"] {
     border-radius: 8px !important;
     color: #F4F1EF !important;
 }
+
+/* ── Role Badges ── */
+.role-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+.role-user         { background: #1C2620; color: #6BAE75; border: 1px solid #2C4D38; }
+.role-investigator { background: #2A241C; color: #E99B83; border: 1px solid #5C4325; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -394,6 +407,122 @@ def section_header(title):
     )
 
 
+# ══════════════════════════════════════════════════════════════
+#  Role-Based Authentication
+#  Credentials are hardcoded for the academic demo.
+#  In production, store hashed passwords in the DB.
+# ══════════════════════════════════════════════════════════════
+
+CREDENTIALS = {
+    # username -> (password, role)
+    "user":         ("user123",         "user"),
+    "investigator": ("investigator123", "investigator"),
+}
+
+
+def show_login():
+    """Render a centered login card and return once authenticated."""
+    st.markdown("""
+    <style>
+    /* ── Hide sidebar on login screen ── */
+    [data-testid="stSidebar"] { display: none !important; }
+
+    /* ── Login card ── */
+    .login-wrap {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 70vh;
+    }
+    .login-card {
+        background: #24262B;
+        border: 1px solid #35373D;
+        border-radius: 14px;
+        padding: 44px 48px 36px 48px;
+        width: 100%;
+        max-width: 420px;
+    }
+    .login-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 28px;
+    }
+    .login-title {
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: #F4F1EF;
+        letter-spacing: -0.02em;
+        margin-bottom: 4px;
+    }
+    .login-sub {
+        font-size: 0.82rem;
+        color: #777A82;
+        margin-bottom: 28px;
+    }
+    .role-badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 3px 10px;
+        border-radius: 20px;
+        margin-top: 10px;
+    }
+    .role-user       { background: #1C2620; color: #6BAE75; border: 1px solid #2C4D38; }
+    .role-investigator { background: #2A241C; color: #E99B83; border: 1px solid #5C4325; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Centered container
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        st.markdown("""
+        <div class="login-logo">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+                 stroke="#E99B83" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M12 8v4"/>
+                <path d="M12 16h.01"/>
+            </svg>
+            <div>
+                <div style="font-size:1.1rem;font-weight:700;color:#F4F1EF;letter-spacing:0.02em;">CYBER SHIELD</div>
+                <div style="font-size:0.68rem;color:#777A82;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">
+                    Incident Investigation
+                </div>
+            </div>
+        </div>
+        <div class="login-title">Sign in</div>
+        <div class="login-sub">Access is role-restricted. Contact your administrator for credentials.</div>
+        """, unsafe_allow_html=True)
+
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="Enter your username")
+            password = st.text_input("Password", placeholder="Enter your password", type="password")
+            submitted = st.form_submit_button("Sign In", use_container_width=True)
+
+        if submitted:
+            creds = CREDENTIALS.get(username.strip().lower())
+            if creds and creds[0] == password:
+                st.session_state["authenticated"] = True
+                st.session_state["username"]      = username.strip().lower()
+                st.session_state["role"]          = creds[1]
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+
+        # Role hints for the demo
+        st.markdown("""
+        <div style="margin-top:28px;padding:14px 16px;background:#1D2025;border:1px solid #35373D;
+                    border-radius:8px;font-size:0.78rem;color:#777A82;line-height:1.8;">
+            <b style="color:#A5A5AA;">Demo accounts</b><br>
+            <span class="role-badge role-user">User</span> &nbsp; username: <code>user</code> &nbsp; password: <code>user123</code><br>
+            <span class="role-badge role-investigator">Investigator</span> &nbsp; username: <code>investigator</code> &nbsp; password: <code>investigator123</code>
+        </div>
+        """, unsafe_allow_html=True)
+
+
 def check_connection():
     conn = create_connection()
     if conn:
@@ -407,11 +536,40 @@ def df_to_csv(df: pd.DataFrame) -> bytes:
 
 
 # ══════════════════════════════════════════════════════════════
-#  Sidebar Navigation
+#  Auth Guard — show login if not authenticated
 # ══════════════════════════════════════════════════════════════
 
+if not st.session_state.get("authenticated"):
+    show_login()
+    st.stop()
+
+role     = st.session_state["role"]
+username = st.session_state["username"]
+
+# ══════════════════════════════════════════════════════════════
+#  Sidebar Navigation  (shown only after login)
+# ══════════════════════════════════════════════════════════════
+
+# Pages available to each role
+INVESTIGATOR_PAGES = [
+    "Dashboard Overview",
+    "Incident Investigation",
+    "Security Alerts",
+    "Evidence Tracking",
+    "Investigation Activities",
+    "Analytical Insights",
+    "Reports & Export",
+]
+
+USER_PAGES = [
+    "Report an Incident",
+    "My Submission Status",
+]
+
+available_pages = INVESTIGATOR_PAGES if role == "investigator" else USER_PAGES
+
 with st.sidebar:
-    st.markdown("""
+    st.markdown(f"""
     <div style="display:flex;align-items:center;gap:12px;padding:8px 4px 16px 4px;">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E99B83" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -425,20 +583,22 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # Signed-in user badge
+    badge_class = "role-investigator" if role == "investigator" else "role-user"
+    badge_label = "Investigator" if role == "investigator" else "User"
+    st.markdown(f"""
+    <div style="background:#1D2025;border:1px solid #35373D;border-radius:6px;padding:8px 12px;margin-bottom:12px;">
+        <div style="font-size:0.78rem;color:#A5A5AA;margin-bottom:4px;">Signed in as</div>
+        <div style="font-size:0.9rem;font-weight:600;color:#F4F1EF;">{username}</div>
+        <span class="role-badge {badge_class}" style="margin-top:4px;">{badge_label}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("<hr style='border:none;border-top:1px solid #35373D;margin:4px 0 14px 0;'>", unsafe_allow_html=True)
 
     page = st.radio(
         "Navigation",
-        [
-            "Dashboard Overview",
-            "Incident Investigation",
-            "Security Alerts",
-            "Evidence Tracking",
-            "Investigation Activities",
-            "Data Entry / Record Management",
-            "Analytical Insights",
-            "Reports & Export",
-        ],
+        available_pages,
         label_visibility="collapsed",
     )
 
@@ -466,11 +626,11 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div style="margin-top:22px;padding:4px;font-size:0.72rem;color:#777A82;text-align:center;line-height:1.5;">
-        Modern Dark SOC Architecture<br>MySQL Relational Engine
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<hr style='border:none;border-top:1px solid #35373D;margin:16px 0;'>", unsafe_allow_html=True)
+
+    if st.button("Sign Out", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -690,7 +850,7 @@ def page_incidents():
     st.markdown("<div class='page-title'>Incident Investigation</div>", unsafe_allow_html=True)
     st.markdown("<div class='page-subtitle'>Search, filter, examine evidence trails, and conduct investigator classification workflows</div>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["All Incidents", "Incident Details", "Report a Security Incident"])
+    tab1, tab2 = st.tabs(["All Incidents", "Incident Details"])
 
     # ── Tab 1: Filter + Table ──
     with tab1:
@@ -928,9 +1088,7 @@ def page_incidents():
                         else:
                             st.error(f"Status update failed: {msg}")
 
-    # ── Tab 3: Report New Incident (Reporter-Facing) ──
-    with tab3:
-        render_incident_reporting_form(form_key_suffix="tab")
+    # (Tab 3 removed — incident reporting is handled via the User portal)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1202,95 +1360,6 @@ def page_investigation_activities():
 
 
 # ══════════════════════════════════════════════════════════════
-#  PAGE 6 – Data Entry / Record Management
-# ══════════════════════════════════════════════════════════════
-
-def page_record_management():
-    st.markdown("<div class='page-title'>Data Entry & Record Management</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-subtitle'>Centralized registration hub for reporting incidents, submitting digital evidence, and logging SOC analyst activities</div>", unsafe_allow_html=True)
-
-    tab1, tab2, tab3 = st.tabs([
-        "Report New Incident",
-        "Add Evidence Record",
-        "Log Investigation Action",
-    ])
-
-    with tab1:
-        render_incident_reporting_form(form_key_suffix="mgmt")
-
-    with tab2:
-        section_header("Register Forensic Evidence")
-        with st.form("mgmt_add_evidence_form"):
-            df_inc_opt = q.get_all_incidents()
-            if df_inc_opt.empty:
-                st.warning("No incidents available to link evidence to.")
-                st.form_submit_button("Submit Evidence", disabled=True)
-            else:
-                ev_inc_map = {f"#{r['incident_id']} - {r['incident_type']} [{r['severity']}]": r["incident_id"] for _, r in df_inc_opt.iterrows()}
-                ec1, ec2 = st.columns(2)
-                with ec1:
-                    ev_inc = st.selectbox("Associated Incident *", list(ev_inc_map.keys()), key="mgmt_ev_inc")
-                    ev_type = st.text_input("Evidence Type *", placeholder="e.g. Email Screenshot, Firewall Log")
-                with ec2:
-                    ev_file = st.text_input("Storage Location / Reference", placeholder="e.g. evidence/network_dump.pcap")
-                ev_desc = st.text_area("Preservation Description *", placeholder="Preservation notes, hash verification, or relevant context...", height=100)
-                ev_sub = st.form_submit_button("Submit Evidence Record")
-                if ev_sub:
-                    if not ev_type.strip():
-                        st.error("Evidence classification is required.")
-                    elif not ev_desc.strip():
-                        st.error("Description is required.")
-                    else:
-                        ok, msg = q.add_evidence(
-                            incident_id=ev_inc_map[ev_inc],
-                            evidence_type=ev_type.strip(),
-                            description=ev_desc.strip(),
-                            file_reference=ev_file.strip() if ev_file.strip() else None,
-                        )
-                        if ok:
-                            st.success("Evidence record saved successfully.")
-                            st.rerun()
-                        else:
-                            st.error(f"Submission failed: {msg}")
-
-    with tab3:
-        section_header("Log Investigation Action")
-        with st.form("mgmt_log_activity_form"):
-            df_inc_opt2 = q.get_all_incidents()
-            inv_df2 = q.get_all_investigators()
-
-            if df_inc_opt2.empty or inv_df2.empty:
-                st.warning("Incidents and investigators must be available.")
-                st.form_submit_button("Record Action", disabled=True)
-            else:
-                inc_map2 = {f"#{r['incident_id']} - {r['incident_type']} [{r['severity']}]": r["incident_id"] for _, r in df_inc_opt2.iterrows()}
-                inv_map3 = {f"{r['name']} ({r['role']})": r["investigator_id"] for _, r in inv_df2.iterrows()}
-
-                lc1, lc2 = st.columns(2)
-                with lc1:
-                    sel_inc2 = st.selectbox("Target Incident *", list(inc_map2.keys()), key="mgmt_log_inc")
-                with lc2:
-                    sel_inv3 = st.selectbox("Investigator *", list(inv_map3.keys()), key="mgmt_log_inv")
-
-                action = st.text_area("Investigation Action *", placeholder="Describe triage, evidence review, or system isolation steps...", height=110)
-                log_sub = st.form_submit_button("Log Action")
-                if log_sub:
-                    if not action.strip():
-                        st.error("Action description is required.")
-                    else:
-                        ok, msg = q.add_investigation_log(
-                            incident_id=inc_map2[sel_inc2],
-                            investigator_id=inv_map3[sel_inv3],
-                            action_performed=action.strip(),
-                        )
-                        if ok:
-                            st.success("Investigation action logged successfully.")
-                            st.rerun()
-                        else:
-                            st.error(f"Action logging failed: {msg}")
-
-
-# ══════════════════════════════════════════════════════════════
 #  PAGE 7 – Analytical Insights
 # ══════════════════════════════════════════════════════════════
 
@@ -1489,19 +1558,114 @@ def page_reports():
 #  Application Router
 # ══════════════════════════════════════════════════════════════
 
-if page == "Dashboard Overview":
-    page_overview()
-elif page == "Incident Investigation":
-    page_incidents()
-elif page == "Security Alerts":
-    page_alerts()
-elif page == "Evidence Tracking":
-    page_evidence()
-elif page == "Investigation Activities":
-    page_investigation_activities()
-elif page == "Data Entry / Record Management":
-    page_record_management()
-elif page == "Analytical Insights":
-    page_insights()
-elif page in ("Reports", "Reports & Export"):
-    page_reports()
+# ══════════════════════════════════════════════════════════════
+#  User-role Pages
+# ══════════════════════════════════════════════════════════════
+
+def page_user_report():
+    """Simplified incident-reporting page shown to the User role."""
+    st.markdown("<div class='page-title'>Report a Security Incident</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='page-subtitle'>Describe what you observed. A security investigator will review and classify your submission.</div>",
+        unsafe_allow_html=True,
+    )
+    render_incident_reporting_form(form_key_suffix="user_role")
+
+
+def page_user_status():
+    """Let a logged-in user look up incidents by their own email."""
+    st.markdown("<div class='page-title'>My Submission Status</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='page-subtitle'>Check the current status of incidents you have reported.</div>",
+        unsafe_allow_html=True,
+    )
+
+    email = st.text_input("Enter the email address you used when reporting the incident",
+                          placeholder="e.g. rahul@company.com", key="user_status_email")
+
+    if email.strip():
+        sql = """
+            SELECT
+                i.incident_id,
+                i.incident_type,
+                i.severity,
+                i.status,
+                i.description,
+                i.reported_at,
+                inv.name AS investigator
+            FROM Incidents i
+            JOIN Devices d  ON i.device_id = d.device_id
+            JOIN Users u    ON d.user_id   = u.user_id
+            LEFT JOIN Investigators inv ON i.investigator_id = inv.investigator_id
+            WHERE LOWER(u.email) = LOWER(%s)
+            ORDER BY i.reported_at DESC
+        """
+        import queries as _q
+        df = _q.execute_query(sql, (email.strip(),))
+        if df.empty:
+            st.info("No incidents found for that email address.")
+        else:
+            st.markdown(f"**{len(df)} incident(s) found for `{email.strip()}`**")
+            for _, row in df.iterrows():
+                sev_c = SEV_COLORS.get(str(row.get("severity", "")), "#777A82")
+                st_c  = STATUS_COLORS.get(str(row.get("status",   "")), "#777A82")
+                st.markdown(f"""
+                <div style="background:#24262B;border:1px solid #35373D;border-radius:8px;
+                            padding:16px 20px;margin-bottom:14px;">
+                    <div style="font-size:1rem;font-weight:600;color:#F4F1EF;margin-bottom:10px;">
+                        Incident #{row['incident_id']}
+                    </div>
+                    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+                        <span style="background:#2B2D32;border:1px solid #35373D;padding:3px 10px;
+                                     border-radius:4px;font-size:0.78rem;color:{sev_c};font-weight:600;">
+                            Severity: {row['severity']}
+                        </span>
+                        <span style="background:#2B2D32;border:1px solid #35373D;padding:3px 10px;
+                                     border-radius:4px;font-size:0.78rem;color:{st_c};font-weight:600;">
+                            Status: {row['status']}
+                        </span>
+                    </div>
+                    <div style="font-size:0.83rem;color:#A5A5AA;margin-bottom:4px;">
+                        <b>Type:</b> {row['incident_type']}
+                    </div>
+                    <div style="font-size:0.83rem;color:#A5A5AA;margin-bottom:4px;">
+                        <b>Reported At:</b> {row['reported_at']}
+                    </div>
+                    <div style="font-size:0.83rem;color:#A5A5AA;margin-bottom:4px;">
+                        <b>Assigned Investigator:</b> {row.get('investigator') or 'Not yet assigned'}
+                    </div>
+                    <div style="font-size:0.83rem;color:#A5A5AA;background:#1D2025;border:1px solid #35373D;
+                                border-radius:6px;padding:10px;margin-top:8px;line-height:1.5;">
+                        {row['description']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+#  Application Router
+# ══════════════════════════════════════════════════════════════
+
+if role == "user":
+    # User-only routes
+    if page == "Report an Incident":
+        page_user_report()
+    elif page == "My Submission Status":
+        page_user_status()
+
+else:
+    # Investigator routes (full access)
+    if page == "Dashboard Overview":
+        page_overview()
+    elif page == "Incident Investigation":
+        page_incidents()
+    elif page == "Security Alerts":
+        page_alerts()
+    elif page == "Evidence Tracking":
+        page_evidence()
+    elif page == "Investigation Activities":
+        page_investigation_activities()
+    elif page == "Analytical Insights":
+        page_insights()
+    elif page in ("Reports", "Reports & Export"):
+        page_reports()
